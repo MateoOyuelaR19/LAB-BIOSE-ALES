@@ -1,1 +1,93 @@
+//ARCHIVO CÓDIGO DE ARDUINO
+const int numDatos = 10;  // Número de datos a recopilar
+int datos[numDatos];       // Array para almacenar los datos
+int pinElectrodo = A0;     // Pin al que está conectado el electrodo
+int pinLed1 = 2;           // Pin para el primer LED
+float umbralSuperior = 45.5;  // Umbral superior para activar el primer LED
 
+// Coeficientes del filtro IIR
+float b[4] = {  0.0076, -0.0227,  0.0227, -0.0076}; // Coeficientes del numerador
+float a[4] = {1.   ,  2.1091, 1.5739, 0.4043};       // Coeficientes del denominador
+
+void setup() {
+  Serial.begin(9600); // Inicializar comunicación serial
+}
+  //funcion rms
+  float calcularRMS(int datos[], int numDatos) {
+  float sumaCuadrados = 0.0;
+  for (int i = 0; i < numDatos; i++) {
+    sumaCuadrados += datos[i] * datos[i]; // Sumar el cuadrado de cada dato al total
+  }
+  float rms = sqrt(sumaCuadrados / numDatos); // Calcular el RMS
+  return rms;
+  }
+
+  void calcularTKEO(float datos[], int numDatos, int resultado[]) {
+  for (int i = 1; i < numDatos - 1; i++) {
+    resultado[i] = datos[i] * datos[i] - datos[i - 1] * datos[i + 1];
+  }
+}
+//funcion del filtro
+void aplicarFiltroIIR(int datos[], int numDatos, float salida[]) {
+  // Inicializar el array de salida con ceros
+  for (int i = 0; i < numDatos; i++) {
+    salida[i] = 0.0;
+  }
+
+  // Aplicar el filtro IIR
+  for (int n = 0; n < numDatos; n++) {
+    for (int k = 0; k < 4; k++) {
+      if (n - k >= 0) {
+        salida[n] += b[k] * datos[n - k];
+      }
+      if (n - k > 0) {
+        salida[n] -= a[k] * salida[n - k];
+      }
+    }
+  }
+}
+
+void loop() {
+  delay(7); // Esperar 7 ms antes de leer cada dato
+  //aca se toman los datos y se guardan en un array que se sobreescribe
+  for (int i = 0; i < numDatos; i++) {
+    datos[i] = analogRead(pinElectrodo); // Leer valor del electrodo y guardarlo en el array
+     // Esperar 100 ms antes de leer el siguiente dato
+  }
+  
+// Crear array para almacenar el resultado del filtro IIR
+  float resultadoFiltro[numDatos];
+
+  // Aplicar filtro IIR
+  aplicarFiltroIIR(datos, numDatos, resultadoFiltro);
+
+ // tkeo
+ int resultadoTKEO[numDatos];
+
+  // Calcular TKEO
+  calcularTKEO(resultadoFiltro, numDatos, resultadoTKEO);
+
+   //calculo rms
+ float rms = calcularRMS(resultadoTKEO, numDatos-1);
+
+ // Comprobar el valor de RMS respecto al umbral
+  if (rms > umbralSuperior) {
+    // Activar el primer LED
+    digitalWrite(pinLed1, HIGH);
+    Serial.print("flexion");
+    Serial.print("RMS: ");
+  Serial.println(rms);
+  delay(400);
+  } else (rms < umbralSuperior); {
+    digitalWrite(pinLed1, LOW);
+  Serial.println(rms);
+
+}
+  // Mostrar los datos recopilados en el puerto serial
+
+
+
+
+
+  // Esperar un tiempo antes de volver a recopilar datos
+  delay(593); 
